@@ -58,9 +58,11 @@ typedef struct
 Identifiants identifiantsAdmin;
 int nombreIdentifiantsAdmin = 1;
 
-void enregistrerPresence(char *matricule) {
+void enregistrerPresence(char *matricule)
+{
     FILE *fichierPresence = fopen("presence.txt", "r");
-    if (fichierPresence == NULL) {
+    if (fichierPresence == NULL)
+    {
         printf("Erreur lors de l'ouverture du fichier de présence.\n");
         return;
     }
@@ -69,13 +71,14 @@ void enregistrerPresence(char *matricule) {
     time_t now = time(NULL);
     struct tm *timeinfo = localtime(&now);
     int jour = timeinfo->tm_mday;
-    int mois = timeinfo->tm_mon + 1; // Le mois commence à 0, donc on ajoute 1
+    int mois = timeinfo->tm_mon + 1;      // Le mois commence à 0, donc on ajoute 1
     int annee = timeinfo->tm_year + 1900; // L'année est le nombre d'années depuis 1900
     fclose(fichierPresence);
 
     // Vérifier si l'étudiant est déjà marqué présent à la date actuelle
     fichierPresence = fopen("presence.txt", "r");
-    if (fichierPresence == NULL) {
+    if (fichierPresence == NULL)
+    {
         printf("Erreur lors de l'ouverture du fichier de présence.\n");
         return;
     }
@@ -84,8 +87,10 @@ void enregistrerPresence(char *matricule) {
     int jour_presence, mois_presence, annee_presence;
     int present = 0;
 
-    while (fscanf(fichierPresence, "%s %d/%d/%d", matricule_presence, &jour_presence, &mois_presence, &annee_presence) != EOF) {
-        if (strcmp(matricule_presence, matricule) == 0 && jour_presence == jour && mois_presence == mois && annee_presence == annee) {
+    while (fscanf(fichierPresence, "%s %d/%d/%d", matricule_presence, &jour_presence, &mois_presence, &annee_presence) != EOF)
+    {
+        if (strcmp(matricule_presence, matricule) == 0 && jour_presence == jour && mois_presence == mois && annee_presence == annee)
+        {
             printf("\n--- ❌ L'étudiant de matricule %s est déjà marqué présent aujourd'hui.\n", matricule);
             present = 1;
             break;
@@ -93,9 +98,11 @@ void enregistrerPresence(char *matricule) {
     }
     fclose(fichierPresence);
 
-    if (!present) {
+    if (!present)
+    {
         FILE *fichier = fopen("presence.txt", "a");
-        if (fichier == NULL) {
+        if (fichier == NULL)
+        {
             printf("Erreur lors de l'ouverture du fichier de présence.\n");
             return;
         }
@@ -111,6 +118,68 @@ void enregistrerPresence(char *matricule) {
         printf("\n--- ✅ Presence marquee pour l'etudiant de matricule %s\n", matricule);
     }
 }
+
+void generer_fichier_par_date(int jour, int mois, int annee)
+{
+    char nom_fichier[20];
+    sprintf(nom_fichier, "%d-%02d-%02d.txt", annee, mois, jour);
+
+    FILE *fichier_presence = fopen("presence.txt", "r");
+    if (fichier_presence == NULL)
+    {
+        printf("Erreur lors de l'ouverture du fichier de présence.\n");
+        return;
+    }
+
+    FILE *fichier_apprenants = fopen(nom_fichier, "w");
+    if (fichier_apprenants == NULL)
+    {
+        printf("Erreur lors de la création du fichier d'apprenants pour la date spécifiée.\n");
+        fclose(fichier_presence);
+        return;
+    }
+
+    fprintf(fichier_apprenants, "Apprenants présents le %02d/%02d/%d :\n\n", jour, mois, annee);
+
+    char matricule[10];
+    while (fscanf(fichier_presence, "%s", matricule) != EOF)
+    {
+        int jour_present, mois_present, annee_present, heure, minute, seconde;
+        fscanf(fichier_presence, "%d/%d/%d %dh%dmn%ds", &jour_present, &mois_present, &annee_present, &heure, &minute, &seconde);
+
+        if (jour_present == jour && mois_present == mois && annee_present == annee)
+        {
+            // Lire les détails de l'apprenant
+            FILE *fichier_etudiant = fopen("etudiant.txt", "r");
+            if (fichier_etudiant == NULL)
+            {
+                printf("Erreur lors de l'ouverture du fichier des étudiants.\n");
+                fclose(fichier_presence);
+                fclose(fichier_apprenants);
+                return;
+            }
+            char matricule_etudiant[10];
+            char nom[20], prenom[20], classe[6];
+            while (fscanf(fichier_etudiant, "%s %s %s %s", matricule_etudiant, prenom, nom, classe) != EOF)
+            {
+                if (strcmp(matricule_etudiant, matricule) == 0)
+                {
+                    // Écrire les détails de l'apprenant dans le fichier
+                    fprintf(fichier_apprenants, "Nom : %s\nPrénom : %s\nClasse : %s\nHeure : %02d:%02d:%02d\n\n", nom, prenom, classe, heure, minute, seconde);
+                    break;
+                }
+            }
+            fclose(fichier_etudiant);
+        }
+    }
+
+    fclose(fichier_presence);
+    fclose(fichier_apprenants);
+
+    printf("Fichier généré avec succès : %s\n", nom_fichier);
+}
+
+
 
 // Fonction pour vérifier si une année est bissextile
 int est_bissextile(int annee)
@@ -228,7 +297,7 @@ void verifier_presence_et_generer_fichier()
     int jour, mois, annee, heure, minute, seconde;
 
     char date_precedente[20] = ""; // Stockage de la date précédente
-    int premier_tableau = 1; // Indicateur pour vérifier si c'est le premier tableau
+    int premier_tableau = 1;       // Indicateur pour vérifier si c'est le premier tableau
 
     while (fscanf(fichier_presence, "%s %d/%d/%d %dh%dmn%ds", matricule_presence, &jour, &mois, &annee, &heure, &minute, &seconde) != EOF)
     {
@@ -246,7 +315,7 @@ void verifier_presence_et_generer_fichier()
             // Commencer un nouveau tableau avec la date comme titre
             fprintf(fichier_sortie, "Liste de présence : %s\n", date_actuelle);
             fprintf(fichier_sortie, "+------------+-------------+----------+------------+------------+\n");
-            fprintf(fichier_sortie, "| Matricule  | Heure       |  Nom     | Prénom     | Classe     |\n");
+            fprintf(fichier_sortie, "| Matricule  | Heure       | Prénom   | Nom      | Classe       |\n");
             fprintf(fichier_sortie, "+------------+-------------+----------+------------+------------+\n");
 
             // Mettre à jour la date précédente
@@ -278,32 +347,38 @@ void verifier_presence_et_generer_fichier()
     getchar();
 }
 
-
-
-void marquerPresence() {
+void marquerPresence()
+{
     char choix[10];
     printf("\nEntrez le matricule de l'etudiant à marquer present ('Q' pour quitter) : ");
     scanf("%s", choix);
-    while (strcmp(choix, "Q") != 0 && strcmp(choix, "q") != 0) {
+    while (strcmp(choix, "Q") != 0 && strcmp(choix, "q") != 0)
+    {
         FILE *fichier = fopen("etudiant.txt", "r");
-        if (fichier == NULL) {
+        if (fichier == NULL)
+        {
             printf("Erreur lors de l'ouverture du fichier d'etudiants.\n");
             return;
         }
 
         char matricule[10];
         int found = 0;
-        while (fscanf(fichier, "%s", matricule) != EOF) {
-            if (strcmp(matricule, choix) == 0) {
+        while (fscanf(fichier, "%s", matricule) != EOF)
+        {
+            if (strcmp(matricule, choix) == 0)
+            {
                 found = 1;
                 break;
             }
         }
         fclose(fichier);
 
-        if (!found) {
+        if (!found)
+        {
             printf("--- ❌ Matricule invalide. Veuillez reessayer ('Q' pour quitter) : ");
-        } else {
+        }
+        else
+        {
             enregistrerPresence(choix);
         }
 
@@ -336,9 +411,6 @@ int menuAdmin()
     return choix;
 }
 
-
-
-
 int menuEtudiant()
 {
     // Définition du menu de l'étudiant
@@ -353,7 +425,7 @@ int menuEtudiant()
         printf("3 MARQUER SA PRÉSENCE\n");
         printf("4 Message (0)\n");
         printf("5 Déconnexion\n");
-        printf("\ Entrez votre choix : ");
+        printf("\n Entrez votre choix : ");
         scanf("%d", &choix);
         if (choix < 1 || choix > 5)
         {
@@ -376,65 +448,8 @@ int verifierIdentifiants(Identifiants *identifiants, int nombreIdentifiants, cha
     return 0; // Identifiants invalides
 }
 
-void generer_fichier_par_date(int jour, int mois, int annee)
-{
-    char nom_fichier[20];
-    sprintf(nom_fichier, "%d-%02d-%02d.txt", annee, mois, jour);
 
-    FILE *fichier_presence = fopen("presence.txt", "r");
-    if (fichier_presence == NULL)
-    {
-        printf("Erreur lors de l'ouverture du fichier de présence.\n");
-        return;
-    }
 
-    FILE *fichier_apprenants = fopen(nom_fichier, "w");
-    if (fichier_apprenants == NULL)
-    {
-        printf("Erreur lors de la création du fichier d'apprenants pour la date spécifiée.\n");
-        fclose(fichier_presence);
-        return;
-    }
-
-    fprintf(fichier_apprenants, "Apprenants présents le %02d/%02d/%d :\n\n", jour, mois, annee);
-
-    char matricule[10];
-    while (fscanf(fichier_presence, "%s", matricule) != EOF)
-    {
-        int jour_present, mois_present, annee_present, heure, minute, seconde;
-        fscanf(fichier_presence, "%d/%d/%d %dh%dmn%ds", &jour_present, &mois_present, &annee_present, &heure, &minute, &seconde);
-
-        if (jour_present == jour && mois_present == mois && annee_present == annee)
-        {
-            // Lire les détails de l'apprenant
-            FILE *fichier_etudiant = fopen("etudiant.txt", "r");
-            if (fichier_etudiant == NULL)
-            {
-                printf("Erreur lors de l'ouverture du fichier des étudiants.\n");
-                fclose(fichier_presence);
-                fclose(fichier_apprenants);
-                return;
-            }
-            char matricule_etudiant[10];
-            char nom[20], prenom[20], classe[6];
-            while (fscanf(fichier_etudiant, "%s %s %s %s", matricule_etudiant, prenom, nom, classe) != EOF)
-            {
-                if (strcmp(matricule_etudiant, matricule) == 0)
-                {
-                    // Écrire les détails de l'apprenant dans le fichier
-                    fprintf(fichier_apprenants, "Nom : %s\nPrénom : %s\nClasse : %s\nHeure : %02d:%02d:%02d\n\n", nom, prenom, classe, heure, minute, seconde);
-                    break;
-                }
-            }
-            fclose(fichier_etudiant);
-        }
-    }
-
-    fclose(fichier_presence);
-    fclose(fichier_apprenants);
-
-    printf("Fichier généré avec succès : %s\n", nom_fichier);
-}
 
 // fonction main
 int main()
@@ -526,7 +541,7 @@ int main()
             {
 
                 printf("\t\t\tBienvenue dans le menu de l'administrateur:\n");
-                printf("--------------------------------------------------------------------------\n");
+                printf("----------------------------------------------------------------n");
                 printf("1  Gestion des étudiants\n");
                 printf("2  Génération de fichiers\n");
                 printf("3  Marquer les présences\n");
@@ -573,11 +588,42 @@ int main()
                         }
                     } while (!(verifierIdentifiants(identifiantsAdmin, nombreIdentifiantsAdmin, saisieLogin, saisieMotDePasse)));
                 }
+                if (choix == 4)
+                {
+                    printf("\n");
+                    int choixmes;
+
+                    do
+                    {
+
+                        printf("Envoyer un message \n");
+                        printf("\n 1  Envoyer un message a tout le monde \n");
+                        printf("\n 2 Envoyer message a une classe ");
+                        printf("\n 3  envoyer message a un ou plusieurs etudiants ");
+                        scanf("%d", &choixmes);
+                        if (choixmes == 1)
+                        {
+                            
+                        }
+                        if (choixmes == 2)
+                        {
+                            printf("\n");
+                          
+                        }
+                        if (choixmes == 3)
+                        {
+                            
+                        }
+                        printf("Taper entrer pour continuer \n");
+                        getchar();
+                    } while (choix <= 0 || choix > 3);
+                    system("clear");
+                }
                 if (choix == 6)
                 {
                     printf("Vous êtes déconnecté !\n");
                 }
-                if (choix==2)
+                if (choix == 2)
                 {
                     int choixP;
                     printf("Génération de fichiers \n");
@@ -585,7 +631,7 @@ int main()
                     printf("2 Presence par date \n");
                     printf("3 Quitter \n");
                     printf("Faite votre choix : ");
-                    scanf("%d",&choixP);
+                    scanf("%d", &choixP);
                     if (choixP == 1)
                     {
                         verifier_presence_et_generer_fichier();
@@ -593,19 +639,15 @@ int main()
                     if (choixP == 2)
                     {
                         printf("Date : ");
-                       saisir_et_verifier_date();
-
-                        
+                        saisir_et_verifier_date();
                     }
                     if (choixP == 3)
                     {
-                       
-                        system("clear");break;
+                        system("clear");
+                        break;
                     }
-                    
-
                 }
-                
+
                 if (choix < 1 || choix > 6)
                 {
                     printf("Choix invalide. Veuillez entrer un choix entre 1 et 2.\n");
@@ -634,7 +676,7 @@ int main()
                 if (choix == 3)
                 {
 
-                    //----------------------- Doublons & Présence ----------------------------------------------------
+                    //----------------------- Doublons & Présence ------------------------------------
                     FILE *fichierPresence = fopen("presence.txt", "r");
                     if (fichierPresence == NULL)
                     {
@@ -648,7 +690,7 @@ int main()
                     {
                         if (strcmp(matricule, matricule) == 0)
                         {
-                            printf("\n--- ❌ L'étudiant dest deja marqué présent.\n", matricule);
+                            printf("\n--- ❌ L'étudiant %s est deja marqué présent.\n", matricule);
                             present = 1;
                             break;
                         }
