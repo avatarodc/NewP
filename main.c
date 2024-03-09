@@ -58,23 +58,58 @@ typedef struct
 Identifiants identifiantsAdmin;
 int nombreIdentifiantsAdmin = 1;
 
-void enregistrerPresence(char *matricule)
-{
-    FILE *fichier = fopen("presence.txt", "a");
-    if (fichier == NULL)
-    {
+void enregistrerPresence(char *matricule) {
+    FILE *fichierPresence = fopen("presence.txt", "r");
+    if (fichierPresence == NULL) {
         printf("Erreur lors de l'ouverture du fichier de présence.\n");
         return;
     }
 
-    // Récupérer la date et l'heure  actuelle
+    // Récupérer la date actuelle
     time_t now = time(NULL);
     struct tm *timeinfo = localtime(&now);
-    // Écrire dans le fichier la date et l'heure
-    fprintf(fichier, "%s %d/%d/%d %dh%dmn%ds\n", matricule, timeinfo->tm_mday, timeinfo->tm_mon + 1,
-            timeinfo->tm_year + 1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    int jour = timeinfo->tm_mday;
+    int mois = timeinfo->tm_mon + 1; // Le mois commence à 0, donc on ajoute 1
+    int annee = timeinfo->tm_year + 1900; // L'année est le nombre d'années depuis 1900
+    fclose(fichierPresence);
 
-    fclose(fichier);
+    // Vérifier si l'étudiant est déjà marqué présent à la date actuelle
+    fichierPresence = fopen("presence.txt", "r");
+    if (fichierPresence == NULL) {
+        printf("Erreur lors de l'ouverture du fichier de présence.\n");
+        return;
+    }
+
+    char matricule_presence[10];
+    int jour_presence, mois_presence, annee_presence;
+    int present = 0;
+
+    while (fscanf(fichierPresence, "%s %d/%d/%d", matricule_presence, &jour_presence, &mois_presence, &annee_presence) != EOF) {
+        if (strcmp(matricule_presence, matricule) == 0 && jour_presence == jour && mois_presence == mois && annee_presence == annee) {
+            printf("\n--- ❌ L'étudiant de matricule %s est déjà marqué présent aujourd'hui.\n", matricule);
+            present = 1;
+            break;
+        }
+    }
+    fclose(fichierPresence);
+
+    if (!present) {
+        FILE *fichier = fopen("presence.txt", "a");
+        if (fichier == NULL) {
+            printf("Erreur lors de l'ouverture du fichier de présence.\n");
+            return;
+        }
+
+        // Récupérer l'heure actuelle
+        int heure = timeinfo->tm_hour;
+        int minute = timeinfo->tm_min;
+        int seconde = timeinfo->tm_sec;
+
+        // Écrire dans le fichier la date et l'heure actuelles
+        fprintf(fichier, "%s %d/%d/%d %02d:%02d:%02d\n", matricule, jour, mois, annee, heure, minute, seconde);
+        fclose(fichier);
+        printf("\n--- ✅ Presence marquee pour l'etudiant de matricule %s\n", matricule);
+    }
 }
 
 // Fonction pour vérifier si une année est bissextile
@@ -244,64 +279,35 @@ void verifier_presence_et_generer_fichier()
 }
 
 
-void marquerPresence()
-{
+
+void marquerPresence() {
     char choix[10];
     printf("\nEntrez le matricule de l'etudiant à marquer present ('Q' pour quitter) : ");
     scanf("%s", choix);
-    while (strcmp(choix, "Q") != 0 && strcmp(choix, "q") != 0)
-    {
-        FILE *fichierPresence = fopen("presence.txt", "r");
-        if (fichierPresence == NULL)
-        {
-            printf("Erreur lors de l'ouverture du fichier de présence.\n");
+    while (strcmp(choix, "Q") != 0 && strcmp(choix, "q") != 0) {
+        FILE *fichier = fopen("etudiant.txt", "r");
+        if (fichier == NULL) {
+            printf("Erreur lors de l'ouverture du fichier d'etudiants.\n");
             return;
         }
-        int present = 0;
+
         char matricule[10];
-        while (fscanf(fichierPresence, "%s", matricule) != EOF)
-        {
-            if (strcmp(matricule, choix) == 0)
-            {
-                printf("\n--- ❌ L'étudiant de matricule %s est déjà marqué présent.\n", choix);
-                present = 1;
+        int found = 0;
+        while (fscanf(fichier, "%s", matricule) != EOF) {
+            if (strcmp(matricule, choix) == 0) {
+                found = 1;
                 break;
             }
         }
-        fclose(fichierPresence);
+        fclose(fichier);
 
-        if (!present)
-        {
-            FILE *fichier = fopen("etudiant.txt", "r+");
-            if (fichier == NULL)
-            {
-                printf("Erreur lors de l'ouverture du fichier d'etudiants.\n");
-                return;
-            }
-
-            while (fscanf(fichier, "%s", matricule) != EOF)
-            {
-                if (strcmp(matricule, choix) == 0)
-                {
-                    // Enregistrer la présence dans le fichier
-                    enregistrerPresence(choix);
-                    printf("\n--- ✅ Presence marquee pour l'etudiant de matricule %s\n", choix);
-                    present = 1;
-                    break;
-                }
-            }
-            fclose(fichier);
-        }
-
-        if (!present)
-        {
+        if (!found) {
             printf("--- ❌ Matricule invalide. Veuillez reessayer ('Q' pour quitter) : ");
-        }
-        else
-        {
-            printf("\n--- Entrez le matricule de l'etudiant à marquer present ('Q' pour quitter) : ");
+        } else {
+            enregistrerPresence(choix);
         }
 
+        printf("\n--- Entrez le matricule de l'etudiant à marquer present ('Q' pour quitter) : ");
         scanf("%s", choix);
     }
 }
