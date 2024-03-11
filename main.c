@@ -93,7 +93,6 @@ void enregistrerPresence(char *matricule)
         printf("Erreur lors de l'ouverture du fichier de présence.\n");
         return;
     }
-
     char matricule_presence[10];
     int jour_presence, mois_presence, annee_presence;
     int present = 0;
@@ -130,31 +129,12 @@ void enregistrerPresence(char *matricule)
     }
 }
 
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-void generer_fichier_par_date(int jour, int mois, int annee) {
+void generer_fichier_par_date(int jour, int mois, int annee)
+{
     FILE *fichier_presence = fopen("presence.txt", "r");
-    if (fichier_presence == NULL) {
+    if (fichier_presence == NULL)
+    {
         printf("Erreur lors de l'ouverture du fichier de présence.\n");
-        return;
-    }
-
-    // Obtenir la date actuelle
-    time_t t = time(NULL);
-    struct tm *tm = localtime(&t);
-    int jour_actuel = tm->tm_mday;
-    int mois_actuel = tm->tm_mon + 1;
-    int annee_actuelle = tm->tm_year + 1900;
-
-    // Vérifier si la date spécifiée est ultérieure à la date actuelle
-    if (annee > annee_actuelle || (annee == annee_actuelle && mois > mois_actuel) ||
-        (annee == annee_actuelle && mois == mois_actuel && jour > jour_actuel)) {
-        printf("Erreur : La date spécifiée est ultérieure à la date actuelle.\n");
-        fclose(fichier_presence);
         return;
     }
 
@@ -162,26 +142,31 @@ void generer_fichier_par_date(int jour, int mois, int annee) {
     sprintf(nom_fichier, "%d-%02d-%02d.txt", annee, mois, jour);
 
     FILE *fichier_apprenants = fopen(nom_fichier, "w");
-    if (fichier_apprenants == NULL) {
+    if (fichier_apprenants == NULL)
+    {
         printf("Erreur lors de la création du fichier d'apprenants pour la date spécifiée.\n");
         fclose(fichier_presence);
         return;
     }
 
-    int aucun_present = 1; // Variable pour indiquer s'il n'y a aucun présent à la date spécifiée
+    // En-tête du tableau
+    fprintf(fichier_apprenants, "+------------+-------------+----------+------------+---------+\n");
+    fprintf(fichier_apprenants, "| Matricule  | Prénom      | Nom      | Classe     | Heure   |\n");
+    fprintf(fichier_apprenants, "+------------+-------------+----------+------------+---------+\n");
 
-    fprintf(fichier_apprenants, "Apprenants présents le %02d/%02d/%d :\n\n", jour, mois, annee);
+    char matricule_presence[10];
+    int jour_presence, mois_presence, annee_presence, heure, minute, seconde;
+    int aucun_present = 1; // Indicateur pour vérifier s'il y a au moins un étudiant présent
 
-    char matricule[10];
-    int heure, minute, seconde;
-
-    while (fscanf(fichier_presence, "%s %d/%d/%d %dh%dmn%ds", matricule, &jour_actuel, &mois_actuel, &annee_actuelle, &heure, &minute, &seconde) != EOF) {
-        if (jour_actuel == jour && mois_actuel == mois && annee_actuelle == annee) {
-            aucun_present = 0; // Il y a au moins un présent à la date spécifiée
-
+    // Lire tous les étudiants présents à cette date
+    while (fscanf(fichier_presence, "%s %d/%d/%d %dh%dmn%ds", matricule_presence, &jour_presence, &mois_presence, &annee_presence, &heure, &minute, &seconde) != EOF)
+    {
+        if (jour_presence == jour && mois_presence == mois && annee_presence == annee)
+        {
             // Lire les détails de l'apprenant
             FILE *fichier_etudiant = fopen("etudiant.txt", "r");
-            if (fichier_etudiant == NULL) {
+            if (fichier_etudiant == NULL)
+            {
                 printf("Erreur lors de l'ouverture du fichier des étudiants.\n");
                 fclose(fichier_presence);
                 fclose(fichier_apprenants);
@@ -190,24 +175,33 @@ void generer_fichier_par_date(int jour, int mois, int annee) {
 
             char matricule_etudiant[10];
             char nom[20], prenom[20], classe[10];
-            while (fscanf(fichier_etudiant, "%s %*s %s %s %s %*d %*s", matricule_etudiant, nom, prenom, classe) != EOF) {
-                if (strcmp(matricule, matricule_etudiant) == 0) {
+            // Parcourir tous les étudiants
+            while (fscanf(fichier_etudiant, "%s %*s %s %s %s %*d %*s", matricule_etudiant, nom, prenom, classe) != EOF)
+            {
+                if (strcmp(matricule_presence, matricule_etudiant) == 0)
+                {
                     // Écrire les détails de l'apprenant dans le fichier
-                    fprintf(fichier_apprenants, "Nom : %s\nPrénom : %s\nClasse : %s\nHeure : %02d:%02d:%02d\n\n", nom, prenom, classe, heure, minute, seconde);
-                    break; // Sortir de la boucle une fois que l'apprenant a été trouvé
+                    fprintf(fichier_apprenants, "| %-10s | %-10s | %-8s | %-10s | %02d:%02d:%02d |\n", matricule_presence, prenom, nom, classe, heure, minute, seconde);
+                    aucun_present = 0; // Indiquer qu'au moins un étudiant est présent
                 }
             }
             fclose(fichier_etudiant);
         }
     }
 
+    // Pied de tableau
+    fprintf(fichier_apprenants, "+------------+-------------+----------+------------+---------+\n");
+
     fclose(fichier_presence);
     fclose(fichier_apprenants);
 
-    if (aucun_present) {
-        remove(nom_fichier); // Supprimer le fichier si aucun présent n'a été enregistré
+    if (aucun_present)
+    {
+        remove(nom_fichier); // Supprimer le fichier si aucun étudiant n'a été enregistré
         printf("Aucun apprenant présent à la date spécifiée.\n");
-    } else {
+    }
+    else
+    {
         printf("Fichier généré avec succès : %s\n", nom_fichier);
     }
 }
@@ -218,78 +212,71 @@ int est_bissextile(int annee)
 {
     if ((annee % 4 == 0 && annee % 100 != 0) || (annee % 400 == 0))
     {
-        return 1; // Si l'année est bissextile, retourne 1
+        return 1; //
     }
     else
     {
-        return 0; // Sinon, retourne 0
+        return 0;
     }
 }
 
-// Fonction pour saisir et vérifier une date
+int est_date_valide(int jour, int mois, int annee)
+{
+    // Vérification de la validité de la date
+    if (mois < 1 || mois > 12)
+        return 0; // Mois invalide
+
+    if (jour < 1)
+        return 0; // Jour invalide
+
+    if ((mois == 2 && est_bissextile(annee) && jour > 29) || (mois == 2 && !est_bissextile(annee) && jour > 28))
+        return 0; // Février avec jour invalide
+
+    if ((mois == 4 || mois == 6 || mois == 9 || mois == 11) && jour > 30)
+        return 0; // Mois avec 30 jours et jour invalide
+
+    if (jour > 31)
+        return 0;
+
+    return 1;
+}
+
 void saisir_et_verifier_date()
 {
     int jour, mois, annee;
+    int result;
 
     do
     {
-        printf("Entrez le jour : ");
-        scanf("%d", &jour);
-        if (jour <= 0 || jour > 31)
-        {
-            printf("Veuillez entrer un jour valide\n");
-        }
-    } while (jour <= 0 || jour > 31);
+        printf("Entrez une date au format jj/mm/aaaa : ");
+        result = scanf("%d/%d/%d", &jour, &mois, &annee);
 
-    do
-    {
-        printf("Entrez le mois : ");
-        scanf("%d", &mois);
-        if (mois <= 0 || mois > 12)
+        // Vérification de la saisie
+        if (result != 3)
         {
-            printf("Veuillez entrer un mois valide\n");
+            printf("Format de date invalide ou saisie incorrecte.\n");
+            // Nettoyage du buffer d'entrée en cas de saisie incorrecte
+            while (getchar() != '\n')
+                ;
+            continue; // Reprend la boucle pour une nouvelle saisie
         }
-    } while (mois <= 0 || mois > 12);
 
-    do
-    {
-        printf("Entrez l'annee : ");
-        scanf("%d", &annee);
-        if (annee <= 0 || annee > 2024)
+        // Vérification de la validité de la date
+        if (!est_date_valide(jour, mois, annee))
         {
-            printf("Veuillez entrer une annee valide\n");
+            printf("Date invalide.\n");
+            continue; // Reprend la boucle pour une nouvelle saisie
         }
-    } while (annee <= 0 || annee > 9999);
 
-    // Vérification de la validité de la date
-    if (mois == 2)
-    {
-        if (est_bissextile(annee))
-        {
-            if (jour > 29)
-            {
-                printf("La date est invalide\n");
-                return;
-            }
-        }
-        else
-        {
-            if (jour > 28)
-            {
-                printf("La date est invalide\n");
-                return;
-            }
-        }
-    }
-    else if ((mois == 4 || mois == 6 || mois == 9 || mois == 11) && jour > 30)
-    {
-        printf("La date est invalide\n");
-        return;
-    }
+        // Sortir de la boucle si la date est valide
+        break;
 
-    printf("Date: %d/%d/%d\n", jour, mois, annee);
+    } while (1); // Boucle infinie jusqu'à ce qu'une date valide soit saisie
+
+    // Une fois que la date valide est saisie, appeler la fonction pour générer le fichier
     generer_fichier_par_date(jour, mois, annee);
 }
+
 void verifier_presence_et_generer_fichier()
 {
     FILE *fichier_presence = fopen("presence.txt", "r");
@@ -419,30 +406,6 @@ void marquerPresence()
     }
 }
 
-/* int menuAdmin()
-{
-    int choix = 0;
-    do
-    {
-        printf("--------------------------------------------------------------------------\n");
-        printf("\t\t\tBienvenue dans le menu de l'administrateur:\n");
-        printf("--------------------------------------------------------------------------\n");
-        printf("1  Gestion des étudiants\n");
-        printf("2  Génération de fichiers\n");
-        printf("3  Marquer les présences\n");
-        printf("4  Envoyer un message\n");
-        printf("5  Paramètres\n");
-        printf("6  Deconnexion\n");
-        printf("\n--- Entrez votre choix : ");
-        scanf("%d", &choix);
-        if (choix < 1 || choix > 6)
-        {
-            printf("Choix invalide. Veuillez entrer un choix entre 1 et 2.\n");
-        }
-    } while (choix != 6);
-    return choix;
-} */
-
 int recupNbApprenant(Apprenant *apprenants)
 {
     FILE *fichier = fopen("etudiant.txt", "r");
@@ -503,30 +466,6 @@ int recupClasse(char classe[], Apprenant *etudiants)
     }
     return j;
 }
-
-/* int menuEtudiant(int nb )
-{
-    // Définition du menu de l'étudiant
-    int choix = 0;
-    do
-    {
-
-        printf("\t\t\tBienvenue dans le menu de l'apprenant :\n");
-
-        printf("1 GESTION DES ÉTUDIANTS\n");
-        printf("2 GÉNÉRATION DE FICHIERS\n");
-        printf("3 MARQUER SA PRÉSENCE\n");
-        printf("4 Message (%nb)\n" ,nb) ;
-        printf("5 Déconnexion\n");
-        printf("\n Entrez votre choix : ");
-        scanf("%d", &choix);
-        if (choix < 1 || choix > 5)
-        {
-            printf("Choix invalide. Veuillez entrer un choix entre  1 et 5.\n");
-        }
-    } while (choix < 1 || choix > 5);
-    return choix;
-} */
 
 // Fonction pour vérifier les identifiants de connexion
 int verifierIdentifiants(Identifiants *identifiants, int nombreIdentifiants, char *login, char *motDePasse)
@@ -646,6 +585,7 @@ int main()
     // Authentification
     do
     {
+
         printf("\nConnexion\n\n");
         saisieLogin[LONGUEUR_MAX_LOGIN] = '\0';
         printf(" login : ");
@@ -692,15 +632,16 @@ int main()
         {
             do
             {
-
-                printf("\t\t\tBienvenue dans le menu de l'administrateur:\n");
-                printf("---------------------------------------------------------------\n");
-                printf("1  Gestion des étudiants\n");
-                printf("2  Génération de fichiers\n");
-                printf("3  Marquer les présences\n");
-                printf("4  Envoyer un message\n");
-                printf("5  Paramètres\n");
-                printf("6  Deconnexion\n");
+                printf("*******************************************************************************\n");
+                printf("*\t\t\tBienvenue dans le menu de l'administrateur:\t\t\t*\n");
+                printf("*******************************************************************************\n");
+                printf("*\t1. Gestion des étudiants\t\t\t\t\t\t*\n");
+                printf("*\t2. Génération de fichiers\t\t\t\t\t*\n");
+                printf("*\t3. Marquer les présences\t\t\t\t\t\t*\n");
+                printf("*\t4. Envoyer un message\t\t\t\t\t\t*\n");
+                printf("*\t5. Paramètres\t\t\t\t\t\t\t\t*\n");
+                printf("*\t6. Deconnexion\t\t\t\t\t\t\t\t*\n");
+                printf("*******************************************************************************\n");
                 printf("\n Entrez votre choix : ");
                 scanf("%d", &choix);
                 if (choix == 3)
@@ -750,100 +691,154 @@ int main()
                     struct tm tm = *localtime(&t);
                     do
                     {
-                        memset(message, '\0', sizeof(message));
-                        printf("Envoyer un message \n");
-                        printf("\n 1  Envoyer un message a tout le monde");
-                        printf("\n 2 Envoyer message a une classe ");
-                        printf("\n 3  envoyer message a un ou plusieurs etudiants \n");
-                        scanf("%d", &choixmes);
-                        if (choixmes == 1)
+                        char rep;
+                        do
                         {
-                            char m;
-                            int i = 0;
-                            getchar();
-                            while (1)
+
+                            memset(message, '\0', sizeof(message));
+                            printf("*******************************************************\n");
+                            printf("*              Envoyer un message                     *\n");
+                            printf("*-----------------------------------------------------*\n");
+                            printf("*   1. Envoyer un message à tout le monde             *\n");
+                            printf("*   2. Envoyer un message à une classe                *\n");
+                            printf("*   3. Envoyer un message à un ou plusieurs étudiants *\n");
+                            printf("*******************************************************\n");
+                            scanf("%d", &choixmes);
+                            if (choixmes == 1)
                             {
-                                printf("Taper votre message : ");
-                                m = getchar();
-                                while (m != '\n')
+                                char m;
+                                int i = 0;
+                                getchar();
+                                while (1)
                                 {
-                                    message[i++] = m;
+                                    printf("Taper votre message : ");
                                     m = getchar();
+                                    while (m != '\n')
+                                    {
+                                        message[i++] = m;
+                                        m = getchar();
+                                    }
+
+                                    if (i != 0)
+                                        break;
                                 }
 
-                                if (i != 0)
-                                    break;
-                            }
+                                // Envoi du message à tous les étudiants
+                                Message messages[50], msg;
+                                Apprenant apprenants[50];
+                                char date[20];
+                                sprintf(date, "%02d/%02d/%04d %02d:%02d:%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                                int nbM = recupNbmessage(messages);
+                                int nbE = recupNbApprenant(apprenants);
 
-                            // Envoi du message à tous les étudiants
-                            Message messages[50], msg;
-                            Apprenant apprenants[50];
-                            char date[20];
-                            sprintf(date, "%02d/%02d/%04d %02d:%02d:%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
-                            int nbM = recupNbmessage(messages);
-                            int nbE = recupNbApprenant(apprenants);
+                                strcpy(msg.contenu, message);
+                                strcpy(msg.dateHeur, date);
+                                msg.status = 1;
 
-                            strcpy(msg.contenu, message);
-                            strcpy(msg.dateHeur, date);
-                            msg.status = 1;
-
-                            for (int i = 0; i < nbE; i++)
-                            {
-                                strcpy(msg.matricule, apprenants[i].matricule);
-                                msg.id = nbM + 1 + i;
-                                ajouterMessage(msg);
-                            }
-                        }
-                        if (choixmes == 2)
-                        {
-                            char m;
-                            int i = 0;
-                            getchar();
-                            while (1)
-                            {
-                                printf("Taper votre message : ");
-                                m = getchar();
-                                while (m != '\n')
+                                for (int i = 0; i < nbE; i++)
                                 {
-                                    message[i++] = m;
-                                    m = getchar();
+                                    strcpy(msg.matricule, apprenants[i].matricule);
+                                    msg.id = nbM + 1 + i;
+                                    ajouterMessage(msg);
                                 }
-
-                                if (i != 0)
-                                    break;
                             }
-                            char classeSaisie[MAX_LENGTH];
-                            classeExiste(classeSaisie);
-                            Apprenant etudiants[50];
-                            char date[20];
-                            Message messages[50], msg;
-
-                            int nbE = recupClasse(classeSaisie, etudiants);
-                            int nbM = recupNbmessage(messages);
-
-                            sprintf(date, "%02d/%02d/%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
-
-                            strcpy(msg.contenu, message);
-                            strcpy(msg.dateHeur, date);
-                            msg.status = 1;
-
-                            for (int i = 0; i < nbE; i++)
+                            if (choixmes == 2)
                             {
-                                strcpy(msg.matricule, etudiants[i].matricule);
-                                msg.id = nbM + 1 + i;
-                                ajouterMessage(msg);
+                                char m;
+                                int i = 0;
+                                getchar();
+                                while (1)
+                                {
+                                    printf("Taper votre message : ");
+                                    m = getchar();
+                                    while (m != '\n')
+                                    {
+                                        message[i++] = m;
+                                        m = getchar();
+                                    }
+
+                                    if (i != 0)
+                                        break;
+                                }
+                                char classeSaisie[MAX_LENGTH];
+                                classeExiste(classeSaisie);
+                                Apprenant etudiants[50];
+                                char date[20];
+                                Message messages[50], msg;
+
+                                int nbE = recupClasse(classeSaisie, etudiants);
+                                int nbM = recupNbmessage(messages);
+
+                                sprintf(date, "%02d/%02d/%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+
+                                strcpy(msg.contenu, message);
+                                strcpy(msg.dateHeur, date);
+                                msg.status = 1;
+
+                                for (int i = 0; i < nbE; i++)
+                                {
+                                    strcpy(msg.matricule, etudiants[i].matricule);
+                                    msg.id = nbM + 1 + i;
+                                    ajouterMessage(msg);
+                                }
                             }
-                        }
-                        if (choixmes == 3)
-                        {
-                            char matricule[10];
-                            printf("Entrez le matricule de l'étudiant destinataire : ");
-                            scanf("%s", matricule);
-                            getchar(); // Pour absorber le saut de ligne
-                            printf("\n");
-                        }
-                        printf("Taper entrer pour continuer \n");
+                            if (choixmes == 3)
+                            {
+                                  Message messages[50], msg;
+                                  Apprenant apprenants[50];
+                                char matricules[100]; // pour stocker les matricules des étudiants
+                                printf("Entrez le(s) matricule(s) de(s) étudiant(s) destinataire(s) séparés par des virgules : ");
+                                scanf("%s", matricules); // lire les matricules entrés par l'utilisateur
+                                getchar();               // Pour absorber le saut de ligne
+                                printf("Taper votre message : \n");
+                                fgets(message, sizeof(message), stdin); // lire le message de l'utilisateur
+
+                                int nbM = recupNbmessage(messages);
+                                int nbE = recupNbApprenant(apprenants);
+
+                                char date[20];
+                                sprintf(date, "%02d/%02d/%04d %02d:%02d:%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+                                // Diviser les matricules entrés par l'utilisateur
+                                char *token = strtok(matricules, ",");
+                                while (token != NULL)
+                                {
+                                    // Rechercher l'étudiant correspondant au matricule donné
+                                    int matricule_valide = 0;
+                                    for (int i = 0; i < nbE; i++)
+                                    {
+                                        if (strcmp(token, apprenants[i].matricule) == 0)
+                                        {
+                                            // Ajouter le message pour cet étudiant
+                                            Message msg;
+                                            strcpy(msg.contenu, message);
+                                            strcpy(msg.dateHeur, date);
+                                            msg.status = 1;
+                                            strcpy(msg.matricule, token);
+                                            msg.id = nbM + 1; // Identifiant unique pour chaque message
+                                            ajouterMessage(msg);
+                                            matricule_valide = 1; // Matricule valide
+                                            break;
+                                        }
+                                    }
+                                    // Vérifier si le matricule est valide et afficher un message approprié
+                                    if (matricule_valide)
+                                        printf("Message envoyé avec succès pour l'étudiant de matricule %s.\n", token);
+                                    else
+                                        printf("Matricule invalide, message non envoyé pour le matricule %s.\n", token);
+
+                                    token = strtok(NULL, ",");
+                                }
+                            }
+
+                            printf("Taper entrer pour continuer \n");
+                            printf("Voulez-vous envoyer un autre message ? (o/n) ");
+                            scanf("%c", &rep);
+                        } while (rep == 'o' || rep == 'O');
                         getchar();
+                        system("clear");
+                        if (rep == 'n' || rep == 'N')
+                            break;
                     } while (choix <= 0 || choix > 3);
                     system("clear");
                 }
@@ -854,11 +849,14 @@ int main()
                 if (choix == 2)
                 {
                     int choixP;
-                    printf("Génération de fichiers \n");
-                    printf("1 Toutes les presences par date \n");
-                    printf("2 Presence par date \n");
-                    printf("3 Quitter \n");
-                    printf("Faite votre choix : ");
+                    printf("***************************************************\n");
+                    printf("*          Génération de fichiers                  *\n");
+                    printf("*-------------------------------------------------*\n");
+                    printf("*   1. Toutes les présences par date              *\n");
+                    printf("*   2. Présences par date                          *\n");
+                    printf("*   3. Quitter                                     *\n");
+                    printf("***************************************************\n");
+                    printf("Faites votre choix : ");
                     scanf("%d", &choixP);
                     if (choixP == 1)
                     {
@@ -875,7 +873,6 @@ int main()
                         break;
                     }
                 }
-
                 if (choix < 1 || choix > 6)
                 {
                     printf("Choix invalide. Veuillez entrer un choix entre 1 et 2.\n");
@@ -886,17 +883,18 @@ int main()
         {
             int choix = 0, nb;
             Message messages[50];
-
+            system("clear");
             do
             {
                 nb = recupMessageApprenant(saisieLogin, messages);
-                printf("\t\t\tBienvenue dans le menu de l'apprenant :\n");
-                printf("--------------------------------------------------------------------------\n");
-                printf("1  GESTION DES ÉTUDIANTS\n");
-                printf("2  GÉNÉRATION DE FICHIERS\n");
-                printf("3  MARQUER SA PRÉSENCE\n");
-                printf("4  Message (%d)\n", nb);
-                printf("5  Déconnexion\n");
+                printf("*\t\t\tBienvenue dans le menu de l'apprenant :\t\t\t *\n");
+                printf("**************************************************************************\n");
+                printf("*  1. GESTION DES ÉTUDIANTS                                               *\n");
+                printf("*  2. GÉNÉRATION DE FICHIERS                                               *\n");
+                printf("*  3. MARQUER SA PRÉSENCE                                                  *\n");
+                printf("*  4. Message (%d)\n", nb);
+                printf("*  5. Déconnexion                                                           *\n");
+                printf("**************************************************************************\n");
                 printf("\n Entrez votre choix : ");
                 scanf("%d", &choix);
                 if (choix < 1 || choix > 5)
@@ -908,6 +906,7 @@ int main()
                 }
                 if (choix == 3)
                 {
+                    system("clear");
 
                     //----------------------- Doublons & Présence ------------------------------------
                     FILE *fichierPresence = fopen("presence.txt", "r");
@@ -963,7 +962,7 @@ int main()
 
                         fclose(fichier);
                     }
-                    //----------------------------------------  Fin -----------------------------------------------------
+                    //----------------------------------------  Fin --------------------------------------------------
                 }
                 if (choix == 5)
                 {
@@ -979,7 +978,7 @@ int main()
 
                     Message toutMessage[50], msg;
                     int nbMessage = recupNbmessage(toutMessage);
-                    FILE *fichier = fopen("message.bin", "wb");
+                    FILE *fichier = fopen("message.bin", "wb+");
                     for (int i = 0; i < nbMessage; i++)
                     {
                         msg = toutMessage[i];
@@ -993,6 +992,8 @@ int main()
                         }
                         fwrite(&msg, sizeof(Message), 1, fichier);
                     }
+
+                    fclose(fichier);
                 }
             } while (choix != 5);
         }
