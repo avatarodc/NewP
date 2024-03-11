@@ -6,9 +6,10 @@
 #include <termios.h>
 #include <ctype.h>
 #define MAX_CLASSES 3
-#define MAX_LENGTH 20
-#define MAX_APPRENANTS 100
+#define MAX_APPRENANTS 300
 #define MAX_LENGTH 100
+#define MAX_LINE_LENGTH 100
+
 //-------------------------------------------
 #ifdef _WIN32
 #include <conio.h>
@@ -53,7 +54,7 @@ typedef struct
     char motdepasse[10];
     char prenom[20];
     char nom[20];
-    char classe[6];
+    char classe[10];
     int statut;
 } Apprenant;
 
@@ -68,6 +69,57 @@ typedef struct
 
 Identifiants identifiantsAdmin;
 int nombreIdentifiantsAdmin = 1;
+
+
+void creerApprenant() {
+    Apprenant nouvelApprenant;
+
+    // Ouverture du fichier en mode ajout
+    FILE *fichier = fopen("etudiant.txt", "a");
+    if (fichier == NULL) {
+        printf("Erreur lors de l'ouverture du fichier.\n");
+        return;
+    }
+
+    // Saisie du mot de passe (à remplacer par un mécanisme sécurisé)
+    printf("Saisir le mot de passe pour l'apprenant: ");
+    scanf("%9s", nouvelApprenant.motdepasse);
+
+    // Saisie du prénom, nom et classe
+    printf("Saisir le prénom de l'apprenant: ");
+    scanf("%19s", nouvelApprenant.prenom);
+    printf("Saisir le nom de l'apprenant: ");
+    scanf("%19s", nouvelApprenant.nom);
+    printf("Saisir la classe de l'apprenant: ");
+    scanf("%9s", nouvelApprenant.classe);
+
+    // Calcul du matricule en fonction du nombre d'apprenants déjà présents dans le fichier
+    int nombreApprenants = 0;
+    char line[MAX_LINE_LENGTH];
+    rewind(fichier); // Se positionner au début du fichier
+    while (fgets(line, sizeof(line), fichier) != NULL) {
+        nombreApprenants++;
+    }
+    snprintf(nouvelApprenant.matricule, sizeof(nouvelApprenant.matricule), "mat%d", nombreApprenants + 1);
+
+    // Saisie de la donnée supplémentaire (toujours 0 dans cet exemple)
+    nouvelApprenant.statut = 0;
+
+    // Écriture des informations de l'apprenant dans le fichier
+    fprintf(fichier, "%s %s %s %s %s %d\n", nouvelApprenant.matricule, nouvelApprenant.motdepasse,
+            nouvelApprenant.prenom, nouvelApprenant.nom, nouvelApprenant.classe, nouvelApprenant.statut);
+
+    // Fermeture du fichier
+    fclose(fichier);
+
+    printf("L'apprenant a été ajouté avec succès dans le fichier etudiant.txt.\n");
+}
+
+void viderTampon() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
 
 void enregistrerPresence(char *matricule)
 {
@@ -96,7 +148,7 @@ void enregistrerPresence(char *matricule)
     char matricule_presence[10];
     int jour_presence, mois_presence, annee_presence;
     int present = 0;
-
+    
     while (fscanf(fichierPresence, "%s %d/%d/%d", matricule_presence, &jour_presence, &mois_presence, &annee_presence) != EOF)
     {
         if (strcmp(matricule_presence, matricule) == 0 && jour_presence == jour && mois_presence == mois && annee_presence == annee)
@@ -205,7 +257,6 @@ void generer_fichier_par_date(int jour, int mois, int annee)
         printf("Fichier généré avec succès : %s\n", nom_fichier);
     }
 }
-
 
 // Fonction pour vérifier si une année est bissextile
 int est_bissextile(int annee)
@@ -483,12 +534,6 @@ int verifierIdentifiants(Identifiants *identifiants, int nombreIdentifiants, cha
 int ajouterMessage(Message msg)
 {
     FILE *fichier = fopen("message.bin", "ab");
-    // if (fichier == NULL){
-    //     printf("Erreur lors de l'ouverture du fichier d'etudiants.\n");
-    //     return -1;
-    // }
-    // fprintf(fichier, "%d | %d | %s | %s | %s \n", msg.id, msg.status, msg.matricule, msg.dateHeur,  msg.contenu);
-
     int rst = fwrite(&msg, sizeof(Message), 1, fichier);
     fclose(fichier);
     return rst;
@@ -522,8 +567,8 @@ int classeExiste(char *classeSaisie)
 }
 
 int recupMessageApprenant(char matricule[], Message *mesg)
-{
-    Message messages[50];
+{   
+    Message messages[100];
     int size = recupNbmessage(messages);
     int nbM = 0;
     for (int i = 0; i < size; i++)
@@ -536,11 +581,66 @@ int recupMessageApprenant(char matricule[], Message *mesg)
     return nbM;
 }
 
-// mesaage
+
+void afficher_message(Apprenant apprenant, char message[200], char date[20])
+{
+    printf("=============================================\n");
+    printf("Message pour l'apprenant %s %s (Matricule: %s):\n", apprenant.prenom, apprenant.nom, apprenant.matricule);
+    printf("Date et heure: %s\n", date);
+    printf("Contenu:\n%s\n", message);
+    printf("=============================================\n");
+}
+
+// Fonction pour envoyer un message à un ou plusieurs destinataires
+void envoyer_message()
+{
+    Apprenant apprenants[50]; // Tableau d'apprenants
+    int nbE = recupNbApprenant(apprenants);
+    char matricules[100];     // pour stocker les matricules des étudiants
+    char message[200];        // pour stocker le message
+    char date[20];            // pour stocker la date et l'heure du message
+
+
+    // Obtenir la date et l'heure actuelles
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    strftime(date, 20, "%d/%m/%Y %H:%M:%S", tm_info);
+
+    printf("Entrez le(s) matricule(s) de(s) étudiant(s) destinataire(s) séparés par des virgules : ");
+    scanf("%s", matricules); // lire les matricules entrés par l'utilisateur
+    getchar();               // Pour absorber le saut de ligne
+    printf("Taper votre message : \n");
+    fgets(message, sizeof(message), stdin); // lire le message de l'utilisateur
+
+    // Diviser les matricules entrés par l'utilisateur
+    char *token = strtok(matricules, ",");
+    while (token != NULL)
+    {
+        // Rechercher l'apprenant correspondant au matricule donné
+        int matricule_valide = 0;
+        for (int i = 0; i < nbE; i++)
+        {
+            if (strcmp(token, apprenants[i].matricule) == 0)
+            {
+                // Afficher le message pour cet apprenant
+                afficher_message(apprenants[i], message, date);
+                matricule_valide = 1; // Matricule valide
+                break;
+            }
+        }
+        // Vérifier si le matricule est valide et afficher un message approprié
+        if (!matricule_valide)
+            printf("Matricule invalide, message non envoyé pour le matricule %s.\n", token);
+
+        token = strtok(NULL, ",");
+    }
+}
+
 
 // fonction main
 int main()
 {
+    viderTampon();
 
     /* Message msg = {1, 1, "mat3", "9/3/2024 16h21mn50s", "Salut les dev"};
     ajouterMessage(msg);
@@ -644,6 +744,11 @@ int main()
                 printf("*******************************************************************************\n");
                 printf("\n Entrez votre choix : ");
                 scanf("%d", &choix);
+                if (choix == 1)
+                {
+                   creerApprenant();
+                }
+                
                 if (choix == 3)
                 {
                     marquerPresence();
@@ -784,8 +889,8 @@ int main()
                             }
                             if (choixmes == 3)
                             {
-                                  Message messages[50], msg;
-                                  Apprenant apprenants[50];
+                                Message messages[50];
+                                Apprenant apprenants[50];
                                 char matricules[100]; // pour stocker les matricules des étudiants
                                 printf("Entrez le(s) matricule(s) de(s) étudiant(s) destinataire(s) séparés par des virgules : ");
                                 scanf("%s", matricules); // lire les matricules entrés par l'utilisateur
