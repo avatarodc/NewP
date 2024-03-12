@@ -1,7 +1,6 @@
-mat1 1234 Moussa Diop DEVWEB 0 
-mat2 1234 Amadou Ndiaye DEVWEB 0 
-mat3 1234 Mouhammad Diagne REFDIG 0 
-mat4 1234 Mamadou GUEYE DATA 0 
-mat5 1234 Andaw Ciss DEVWEB 0 
+mat1 1234 Moussa Diop DEVWEB 0
+mat2 1234 Amadou Ndiaye DEVWEB 0
+mat3 1234 Mouhammad Diagne REFDIG 0
+mat4 1234 Mamadou GUEYE DATA 0
+mat5 1234 Andaw Ciss DEVWEB 0
 mat6 1234 Fanta TINE DEVWEB 0
-mat1 2345 thiakhane fall REFDIG 0
