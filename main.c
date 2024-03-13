@@ -32,11 +32,12 @@ char getch()
 }
 #endif
 
-#define LONGUEUR_MAX_LOGIN 10
-#define LONGUEUR_MAX_MDP 10
+#define LONGUEUR_MAX_LOGIN 50
+#define LONGUEUR_MAX_MDP 50
 #define MAX_STUDENTS_PER_CLASS 50
 #define MAX_DATES 100
 #define MAX_DAYS 7
+#define MAX_STRING_LENGTH 20
 typedef struct
 {
     int jour;
@@ -59,7 +60,16 @@ typedef struct
     char classe[10];
     int statut;
     int nombre_absences;
+    int nombre_retards;
 } Apprenant;
+
+
+typedef struct
+{
+    int nbhr;
+    int nba;
+} Quota;
+
 
 typedef struct
 {
@@ -73,7 +83,76 @@ typedef struct
 Identifiants identifiantsAdmin;
 int nombreIdentifiantsAdmin = 1;
 
-void generer_statistiques(Apprenant apprenants[], int num_apprenants)
+// Fonction pour bloquer un apprenant en fonction des quotas
+void bloquerApprenants() {
+    FILE *quotaFile = fopen("quota.txt", "r");
+    if (quotaFile == NULL) {
+        printf("Erreur lors de l'ouverture du fichier quota.txt\n");
+        return;
+    }
+
+    Quota quotas;
+    fscanf(quotaFile, "nbhr %d\n", &quotas.nbhr);
+    fscanf(quotaFile, "nba %d\n", &quotas.nba);
+    fclose(quotaFile);
+
+    FILE *apprenantFile = fopen("etudiant.txt", "r");
+    if (apprenantFile == NULL) {
+        printf("Erreur lors de l'ouverture du fichier apprenants.txt\n");
+        return;
+    }
+
+    Apprenant apprenants[MAX_APPRENANTS];
+    int nbApprenants = 0;
+
+    // Lecture des apprenants depuis le fichier
+    while (fscanf(apprenantFile, "%s %s %s %s %s %d %d %d",
+                  apprenants[nbApprenants].matricule,
+                  apprenants[nbApprenants].motdepasse,
+                  apprenants[nbApprenants].prenom,
+                  apprenants[nbApprenants].nom,
+                  apprenants[nbApprenants].classe,
+                  &apprenants[nbApprenants].statut,
+                  &apprenants[nbApprenants].nombre_absences,
+                  &apprenants[nbApprenants].nombre_retards) != EOF) {
+        nbApprenants++;
+    }
+
+    fclose(apprenantFile);
+
+    // Bloquer les apprenants en fonction des quotas
+    for (int i = 0; i < nbApprenants; i++) {
+        if (apprenants[i].nombre_absences > quotas.nba || apprenants[i].nombre_retards > quotas.nbhr) {
+            apprenants[i].statut = 0; // Bloquer l'apprenant
+        }
+    }
+
+    // Écriture des apprenants bloqués dans un nouveau fichier
+    FILE *blockedApprenantsFile = fopen("blocked_apprenants.txt", "w");
+    if (blockedApprenantsFile == NULL) {
+        printf("Erreur lors de l'ouverture du fichier blocked_apprenants.txt\n");
+        return;
+    }
+
+    for (int i = 0; i < nbApprenants; i++) {
+        fprintf(blockedApprenantsFile, "%s %s %s %s %s %d %d %d\n",
+                apprenants[i].matricule,
+                apprenants[i].motdepasse,
+                apprenants[i].prenom,
+                apprenants[i].nom,
+                apprenants[i].classe,
+                apprenants[i].statut,
+                apprenants[i].nombre_absences,
+                apprenants[i].nombre_retards);
+    }
+
+    fclose(blockedApprenantsFile);
+    
+    printf("Les apprenants ont été bloqués selon les quotas spécifiés.\n");
+}
+
+
+/* void generer_statistiques(Apprenant apprenants[], int num_apprenants)
 {
     FILE *statistiques_file = fopen("statistiques.txt", "w");
     if (statistiques_file == NULL)
@@ -103,27 +182,27 @@ void generer_statistiques(Apprenant apprenants[], int num_apprenants)
     fprintf(statistiques_file, "+------------+----------------------------------+\n");
     fclose(statistiques_file);
 }
-
+ */
 int compter_presences(char *matricule, char dates[][20], int num_dates)
-{
-    FILE *presence_file = fopen("presence.txt", "r");
-    if (presence_file == NULL)
     {
-        perror("Erreur lors de l'ouverture du fichier presence.txt");
-        exit(EXIT_FAILURE);
-    }
-    int presences = 0;
-    char matricule_presence[10], date[20], heure[10];
-    while (fscanf(presence_file, "%s %s %s", matricule_presence, date, heure) == 3)
-    {
-        if (strcmp(matricule_presence, matricule) == 0)
+        FILE *presence_file = fopen("presence.txt", "r");
+        if (presence_file == NULL)
         {
-            presences++;
+            perror("Erreur lors de l'ouverture du fichier presence.txt");
+            exit(EXIT_FAILURE);
         }
+        int presences = 0;
+        char matricule_presence[10], date[20], heure[10];
+        while (fscanf(presence_file, "%s %s %s", matricule_presence, date, heure) == 3)
+        {
+            if (strcmp(matricule_presence, matricule) == 0)
+            {
+                presences++;
+            }
+        }
+        fclose(presence_file);
+        return num_dates - presences;
     }
-    fclose(presence_file);
-    return num_dates - presences;
-}
 
 void charger_etudiants_et_compter_absences(Apprenant apprenants[], int *num_apprenants)
 {
@@ -228,19 +307,26 @@ void lire_presence(Apprenant apprenants[], int num_apprenants)
     }
     fclose(presence_file);
 }
-
-void afficher_retards(Apprenant apprenants[], int num_apprenants)
-{
-    printf("+------------+----------------------+-------------+\n");
-    printf("| Matricule  | Nom Complet          | Retard (min)|\n");
-    printf("+------------+----------------------+-------------+\n");
-    for (int i = 0; i < num_apprenants; i++)
-    {
-        printf("| %-10s | %-20s | %-11d|\n", apprenants[i].matricule,
-               strcat(apprenants[i].nom, apprenants[i].prenom), apprenants[i].statut);
+void afficher_retards(Apprenant apprenants[], int num_apprenants) {
+    FILE *fichier = fopen("retards.txt", "w");
+    if (fichier == NULL) {
+        printf("Erreur lors de l'ouverture du fichier pour écrire.\n");
+        return;
     }
-    printf("+------------+----------------------+-------------+\n");
+
+    fprintf(fichier, "+------------+----------------------+-------------+\n");
+    fprintf(fichier, "| Matricule  | Nom Complet          | Retard (min)|\n");
+    fprintf(fichier, "+------------+----------------------+-------------+\n");
+    for (int i = 0; i < num_apprenants; i++) {
+        fprintf(fichier, "| %-10s | %-20s | %-11d|\n", apprenants[i].matricule,
+                strcat(apprenants[i].nom, apprenants[i].prenom), apprenants[i].statut);
+    }
+    fprintf(fichier, "+------------+----------------------+-------------+\n");
+
+    fclose(fichier);
+    printf("Les retards ont été enregistrés dans le fichier 'retards.txt'.\n");
 }
+
 
 // Fonction pour écrire le nombre d'apprenants dans un fichier
 void ecrireNombreApprenants(int nombreApprenants)
@@ -321,13 +407,13 @@ void creerApprenant()
     printf("L'apprenant a été ajouté avec succès dans le fichier %s.\n", FILENAME);
 }
 
-
-
 // Fonction pour modifier un apprenant
-void modifierApprenant(char *matricule) {
+void modifierApprenant(char *matricule)
+{
     // Ouvrir le fichier en mode lecture et écriture
     FILE *fichier = fopen("etudiant.txt", "r+");
-    if (fichier == NULL) {
+    if (fichier == NULL)
+    {
         printf("Erreur lors de l'ouverture du fichier.\n");
         return;
     }
@@ -336,14 +422,17 @@ void modifierApprenant(char *matricule) {
     Apprenant apprenant;
     int trouve = 0;
     while (fscanf(fichier, "%s %s %s %s %s %d", apprenant.matricule, apprenant.motdepasse,
-                  apprenant.prenom, apprenant.nom, apprenant.classe, &apprenant.statut) == 6) {
-        if (strcmp(apprenant.matricule, matricule) == 0) {
+                  apprenant.prenom, apprenant.nom, apprenant.classe, &apprenant.statut) == 6)
+    {
+        if (strcmp(apprenant.matricule, matricule) == 0)
+        {
             trouve = 1;
             break;
         }
     }
 
-    if (!trouve) {
+    if (!trouve)
+    {
         printf("Aucun apprenant trouvé avec le matricule fourni.\n");
         fclose(fichier);
         return;
@@ -357,21 +446,39 @@ void modifierApprenant(char *matricule) {
     printf("Nom: %s\n", apprenant.nom);
     printf("Classe: %s\n", apprenant.classe);
     printf("Statut: %d\n", apprenant.statut);
-
+    char input[MAX_STRING_LENGTH];
+    viderTampon();
     // Saisir les nouvelles informations (à compléter selon vos besoins)
-    printf("Saisir le nouveau mot de passe pour l'apprenant: ");
-    scanf("%9s", apprenant.motdepasse);
-    printf("Saisir le nouveau prénom de l'apprenant: ");
-    scanf("%19s", apprenant.prenom);
-    printf("Saisir le nouveau nom de l'apprenant: ");
-    scanf("%19s", apprenant.nom);
-    printf("Saisir la nouvelle classe de l'apprenant: ");
-    scanf("%9s", apprenant.classe);
+   printf("Saisir le nouveau mot de passe pour l'apprenant (appuyez sur Entrée pour conserver l'ancienne valeur): ");
+    fgets(input, MAX_STRING_LENGTH, stdin);
+    if (input[0] != '\n' && input[0] != '\0') {
+        strncpy(apprenant.motdepasse, input, sizeof(input));
+        apprenant.motdepasse[strcspn(apprenant.motdepasse, "\n")] = 0; // Supprimer le saut de ligne s'il est présent
+    }
+    viderTampon();
+    printf("Saisir le nouveau prénom de l'apprenant (appuyez sur Entrée pour conserver l'ancienne valeur): ");
+    fgets(input, MAX_STRING_LENGTH, stdin);
+    if (input[0] != '\n' && input[0] != '\0') {
+        strncpy(apprenant.prenom, input, sizeof(input));
+        apprenant.prenom[strcspn(apprenant.prenom, "\n")] = 0;
+    }
+
+    printf("Saisir le nouveau nom de l'apprenant (appuyez sur Entrée pour conserver l'ancienne valeur): ");
+    fgets(input, MAX_STRING_LENGTH, stdin);
+    if (input[0] != '\n' && input[0] != '\0') {
+        strncpy(apprenant.nom, input, sizeof(input));
+        apprenant.nom[strcspn(apprenant.nom, "\n")] = 0;
+    }
+    viderTampon();
+    printf("Saisir la nouvelle classe de l'apprenant (appuyez sur Entrée pour conserver l'ancienne valeur): ");
+    fgets(input, MAX_STRING_LENGTH, stdin);
+    if (input[0] != '\n' && input[0] != '\0') {
+        strncpy(apprenant.classe, input, sizeof(input));
+        apprenant.classe[strcspn(apprenant.classe, "\n")] = 0;
+    }
 
     // Replacer le curseur au début de la ligne de l'apprenant
-    fseek(fichier, -1 * (strlen(apprenant.matricule) + strlen(apprenant.motdepasse) +
-                         strlen(apprenant.prenom) + strlen(apprenant.nom) +
-                         strlen(apprenant.classe) + sizeof(apprenant.statut) + 5),
+    fseek(fichier, -1 * (strlen(apprenant.matricule) + strlen(apprenant.motdepasse) + strlen(apprenant.prenom) + strlen(apprenant.nom) + strlen(apprenant.classe) + sizeof(apprenant.statut) + 5),
           SEEK_CUR);
 
     // Écrire les nouvelles informations dans le fichier
@@ -385,17 +492,20 @@ void modifierApprenant(char *matricule) {
 }
 
 // Fonction pour supprimer un apprenant
-void supprimerApprenant(char *matricule) {
+void supprimerApprenant(char *matricule)
+{
     // Ouvrir le fichier en mode lecture et écriture
     FILE *fichier = fopen("etudiant.txt", "r+");
-    if (fichier == NULL) {
+    if (fichier == NULL)
+    {
         printf("Erreur lors de l'ouverture du fichier.\n");
         return;
     }
 
     // Créer un fichier temporaire
     FILE *fichier_temp = fopen("temp.txt", "w");
-    if (fichier_temp == NULL) {
+    if (fichier_temp == NULL)
+    {
         printf("Erreur lors de la création du fichier temporaire.\n");
         fclose(fichier);
         return;
@@ -404,8 +514,10 @@ void supprimerApprenant(char *matricule) {
     // Copier tous les apprenants sauf celui à supprimer dans le fichier temporaire
     Apprenant apprenant;
     while (fscanf(fichier, "%s %s %s %s %s %d", apprenant.matricule, apprenant.motdepasse,
-                  apprenant.prenom, apprenant.nom, apprenant.classe, &apprenant.statut) == 6) {
-        if (strcmp(apprenant.matricule, matricule) != 0) {
+                  apprenant.prenom, apprenant.nom, apprenant.classe, &apprenant.statut) == 6)
+    {
+        if (strcmp(apprenant.matricule, matricule) != 0)
+        {
             fprintf(fichier_temp, "%s %s %s %s %s %d\n", apprenant.matricule, apprenant.motdepasse,
                     apprenant.prenom, apprenant.nom, apprenant.classe, apprenant.statut);
         }
@@ -416,13 +528,15 @@ void supprimerApprenant(char *matricule) {
     fclose(fichier_temp);
 
     // Supprimer le fichier original
-    if (remove("etudiant.txt") != 0) {
+    if (remove("etudiant.txt") != 0)
+    {
         printf("Erreur lors de la suppression du fichier original.\n");
         return;
     }
 
     // Renommer le fichier temporaire en fichier original
-    if (rename("temp.txt", "etudiant.txt") != 0) {
+    if (rename("temp.txt", "etudiant.txt") != 0)
+    {
         printf("Erreur lors du renommage du fichier temporaire.\n");
         return;
     }
@@ -740,32 +854,45 @@ void marquerPresence()
     scanf("%s", choix);
     while (strcmp(choix, "Q") != 0 && strcmp(choix, "q") != 0)
     {
-        FILE *fichier = fopen("etudiant.txt", "r");
-        if (fichier == NULL)
-        {
-            printf("Erreur lors de l'ouverture du fichier d'etudiants.\n");
-            return;
-        }
+        // Obtenir l'heure actuelle
+        time_t t = time(NULL);
+        struct tm *tm = localtime(&t);
+        int heure_actuelle = tm->tm_hour;
 
-        char matricule[10];
-        int found = 0;
-        while (fscanf(fichier, "%s", matricule) != EOF)
+        // Vérifier si l'heure est entre 8h et 16h
+        if (heure_actuelle >= 8 && heure_actuelle < 16)
         {
-            if (strcmp(matricule, choix) == 0)
+            FILE *fichier = fopen("etudiant.txt", "r");
+            if (fichier == NULL)
             {
-                found = 1;
-                break;
+                printf("Erreur lors de l'ouverture du fichier d'etudiants.\n");
+                return;
             }
-        }
-        fclose(fichier);
 
-        if (!found)
-        {
-            printf("--- ❌ Matricule invalide. Veuillez reessayer ('Q' pour quitter) : ");
+            char matricule[10];
+            int found = 0;
+            while (fscanf(fichier, "%s", matricule) != EOF)
+            {
+                if (strcmp(matricule, choix) == 0)
+                {
+                    found = 1;
+                    break;
+                }
+            }
+            fclose(fichier);
+
+            if (!found)
+            {
+                printf("--- ❌ Matricule invalide. Veuillez reessayer ('Q' pour quitter) : ");
+            }
+            else
+            {
+                enregistrerPresence(choix);
+            }
         }
         else
         {
-            enregistrerPresence(choix);
+            printf("--- ❌ Vous ne pouvez marquer la présence qu'entre 8h et 16h.\n");
         }
 
         printf("\n--- Entrez le matricule de l'etudiant à marquer present ('Q' pour quitter) : ");
@@ -1083,15 +1210,17 @@ int main()
                     }
                     if (choixG == 2)
                     {
-                        char mat [10];
-                       /*  printf("Saisissez le matricule de l'apprenant a supprimer : ");
+                        char mat[10];
+                        printf("Saisissez le matricule de l'apprenant a supprimer : ");
                         scanf("%s", mat);
-                        */ //supprimerApprenant(mat);
-                        generer_statistiques(apprenants, num_apprenants);
+                        //supprimerApprenant(mat);
+
+                          bloquerApprenants();
+                        // generer_statistiques(apprenants, num_apprenants);
                     }
                     if (choixG == 3)
                     {
-                        char mat [10];
+                        char mat[10];
                         printf("Saisissez le matricule de l'apprenant a modifier : ");
                         scanf("%s", mat);
                         modifierApprenant(mat);
